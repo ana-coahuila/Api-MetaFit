@@ -5,6 +5,7 @@ const authRoutes = require('./routes/authRoutes');
 const mealRoutes = require('./routes/mealRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
 const planRoutes = require('./routes/planRoutes');
+const progressRoutes = require('./routes/progressRoutes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -16,7 +17,7 @@ app.use(express.json());
 app.use(errorHandler);
 
 // Conexión a MongoDB
-mongoose.connect('mongodb://localhost:27017/nutrionDB', {
+mongoose.connect('mongodb://localhost:27017/fitness_db', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
@@ -28,6 +29,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/meals', mealRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/plans', planRoutes);
+app.use('/api/progress', progressRoutes);
+
+// Rutas para la ia 
 
 // Iniciar servidor
 app.listen(PORT, () => {

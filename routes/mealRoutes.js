@@ -13,6 +13,5 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Puedes agregar más rutas aquí si lo deseas (POST, PUT, DELETE, etc.)
 
 module.exports = router;

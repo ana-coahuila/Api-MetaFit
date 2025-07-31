@@ -30,7 +30,14 @@ const exerciseSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
+  },
+
+  category: {
+    type: String,
+    required: true,
+    enum: ['normal', 'sobrepeso', 'obesidadI', 'obesidadII', 'obesidadIII']
   }
+  
 }, { timestamps: true });
 
 module.exports = mongoose.model('Exercise', exerciseSchema);

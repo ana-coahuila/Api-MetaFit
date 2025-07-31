@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
   bmiCategory: {
     type: String,
     enum: ['Normal', 'Sobrepeso', 'Obesidad I', 'Obesidad II', 'Obesidad III']
+  },
+  plan: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Plan'
   }
 }, { timestamps: true });
 

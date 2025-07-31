@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nutrionDB', {
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/fitness_db', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });

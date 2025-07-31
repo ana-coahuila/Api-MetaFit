@@ -1,76 +1,119 @@
-const Plan = require('../models/Plan');
+const Plan = require('../models/plan');
+const User = require('../models/User');
 
-// Crear un nuevo plan
-exports.createPlan = async (req, res, next) => {
+// Crear un plan vacío para un nuevo usuario
+exports.createInitialPlan = async (userId) => {
   try {
-    const { date, meals, exercises } = req.body;
-    
-    const newPlan = new Plan({
-      date,
-      meals,
-      exercises: exercises || []
+    const emptyPlan = new Plan({
+      meals: {
+        breakfast: { name: '', calories: 0, category: '' },
+        lunch: { name: '', calories: 0, category: '' },
+        dinner: { name: '', calories: 0, category: '' }
+      }
     });
-
-    const plan = await newPlan.save();
-    res.status(201).json(plan);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Obtener todos los planes
-exports.getAllPlans = async (req, res, next) => {
-  try {
-    const plans = await Plan.find().sort({ date: 1 });
-    res.json(plans);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Obtener un plan por fecha
-exports.getPlanByDate = async (req, res, next) => {
-  try {
-    const plan = await Plan.findOne({ date: req.params.date });
-    if (!plan) {
-      return res.status(404).json({ msg: 'Plan no encontrado' });
-    }
-    res.json(plan);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// Actualizar un plan
-exports.updatePlan = async (req, res, next) => {
-  try {
-    const { meals, exercises } = req.body;
     
-    const updatedPlan = await Plan.findOneAndUpdate(
-      { date: req.params.date },
-      { meals, exercises },
+    const savedPlan = await emptyPlan.save();
+    
+    // Asociar el plan al usuario
+    await User.findByIdAndUpdate(userId, { $set: { plan: savedPlan._id } });
+    
+    return savedPlan;
+  } catch (error) {
+    console.error('Error creating initial plan:', error);
+    throw error;
+  }
+};
+
+// Obtener el plan del usuario autenticado
+exports.getUserPlan = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('plan');
+    
+    if (!user || !user.plan) {
+      return res.status(404).json({ message: 'Plan no encontrado' });
+    }
+    
+    res.json(user.plan);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al obtener el plan' });
+  }
+};
+
+// Actualizar el plan del usuario
+exports.updatePlan = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user || !user.plan) {
+      return res.status(404).json({ message: 'Plan no encontrado' });
+    }
+    
+    const updatedPlan = await Plan.findByIdAndUpdate(
+      user.plan,
+      { $set: req.body },
       { new: true, runValidators: true }
     );
-
-    if (!updatedPlan) {
-      return res.status(404).json({ msg: 'Plan no encontrado' });
-    }
-
+    
     res.json(updatedPlan);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al actualizar el plan' });
   }
 };
 
-// Eliminar un plan
-exports.deletePlan = async (req, res, next) => {
+// Actualizar una comida específica (desayuno, almuerzo o cena)
+exports.updateMeal = async (req, res) => {
   try {
-    const deletedPlan = await Plan.findOneAndDelete({ date: req.params.date });
-    if (!deletedPlan) {
-      return res.status(404).json({ msg: 'Plan no encontrado' });
+    const { mealType } = req.params; // breakfast, lunch o dinner
+    const user = await User.findById(req.user.id);
+    
+    if (!user || !user.plan) {
+      return res.status(404).json({ message: 'Plan no encontrado' });
     }
-    res.json({ msg: 'Plan eliminado' });
-  } catch (err) {
-    next(err);
+    
+    const updateField = {};
+    updateField[`meals.${mealType}`] = req.body;
+    
+    const updatedPlan = await Plan.findByIdAndUpdate(
+      user.plan,
+      { $set: updateField },
+      { new: true, runValidators: true }
+    );
+    
+    res.json(updatedPlan);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al actualizar la comida' });
+  }
+};
+
+// Eliminar el plan (lo reinicia a vacío)
+exports.resetPlan = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user || !user.plan) {
+      return res.status(404).json({ message: 'Plan no encontrado' });
+    }
+    
+    const emptyPlan = {
+      meals: {
+        breakfast: { name: '', calories: 0, category: '' },
+        lunch: { name: '', calories: 0, category: '' },
+        dinner: { name: '', calories: 0, category: '' }
+      }
+    };
+    
+    const updatedPlan = await Plan.findByIdAndUpdate(
+      user.plan,
+      { $set: emptyPlan },
+      { new: true }
+    );
+    
+    res.json(updatedPlan);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error al reiniciar el plan' });
   }
 };
