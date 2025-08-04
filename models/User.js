@@ -47,10 +47,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['Normal', 'Sobrepeso', 'Obesidad I', 'Obesidad II', 'Obesidad III']
   },
-  plan: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Plan'
-  }
+
 }, { timestamps: true });
 
 // Calcular BMI antes de guardar

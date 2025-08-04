@@ -1,4 +1,4 @@
-const Plan = require('../models/plan');
+const Plan = require('../models/Plan');
 const User = require('../models/User');
 
 // Crear un plan vacío para un nuevo usuario

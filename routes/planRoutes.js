@@ -1,75 +1,72 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
 const Plan = require('../models/Plan');
+const User = require('../models/User');
+const auth = require('../middleware/auth');
 
-// 🔹 Crear un nuevo plan
-router.post('/', auth, async (req, res) => {
+// @route   POST /api/plans/generate
+// @desc    Generar plan automático basado en BMI del usuario
+// @access  Private
+router.post('/generate', auth, async (req, res) => {
   try {
-    const { meals } = req.body;
-
-    if (!req.user || !req.user.bmiCategory) {
-      return res.status(400).json({ message: 'No se encontró la categoría del usuario' });
+    // 1. Obtener el usuario autenticado
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    const plan = new Plan({
-      meals,
-      category: req.user.bmiCategory,  // <-- Aquí se guarda la categoría del usuario
-      user: req.user.id                // <-- Asociar plan al usuario
+    // 2. Verificar que el usuario tenga bmiCategory
+    if (!user.bmiCategory) {
+      return res.status(400).json({ message: 'El usuario no tiene categoría BMI asignada' });
+    }
+
+    // 3. Buscar un plan existente en la DB que coincida con la categoría del usuario
+    const samplePlan = await Plan.findOne({ 
+      bmiCategory: user.bmiCategory 
     });
 
-    await plan.save();
-    res.status(201).json(plan);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al crear el plan', error });
+    if (!samplePlan) {
+      return res.status(404).json({ 
+        message: 'No se encontraron planes para la categoría BMI del usuario' 
+      });
+    }
+
+    // 4. Crear el nuevo plan para el usuario
+    const newPlan = new Plan({
+      userId: user._id,
+      bmiCategory: user.bmiCategory,
+      meals: {
+        breakfast: samplePlan.meals.breakfast,
+        lunch: samplePlan.meals.lunch,
+        dinner: samplePlan.meals.dinner
+      }
+    });
+
+    // 5. Guardar el plan y responder
+    const savedPlan = await newPlan.save();
+    res.status(201).json(savedPlan);
+
+  } catch (err) {
+    console.error('Error al generar plan:', err);
+    res.status(500).json({ 
+      message: 'Error al generar el plan',
+      error: err.message 
+    });
   }
 });
 
-// 🔹 Obtener todos los planes
-router.get('/', auth, async (req, res) => {
+// @route   GET /api/plans/me
+// @desc    Obtener el plan del usuario actual
+// @access  Private
+router.get('/me', auth, async (req, res) => {
   try {
-    const plans = await Plan.find();
-    res.json(plans);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al obtener los planes', error });
-  }
-});
-
-// 🔹 Obtener un plan por ID
-router.get('/:id', auth, async (req, res) => {
-  try {
-    const plan = await Plan.findById(req.params.id);
-    if (!plan) return res.status(404).json({ message: 'Plan no encontrado' });
+    const plan = await Plan.findOne({ userId: req.user.id });
+    if (!plan) {
+      return res.status(404).json({ message: 'No se encontró un plan para este usuario' });
+    }
     res.json(plan);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al obtener el plan', error });
-  }
-});
-
-// 🔹 Actualizar un plan por ID
-router.put('/:id', auth, async (req, res) => {
-  try {
-    const { meals } = req.body;
-    const updatedPlan = await Plan.findByIdAndUpdate(
-      req.params.id,
-      { meals },
-      { new: true }
-    );
-    if (!updatedPlan) return res.status(404).json({ message: 'Plan no encontrado' });
-    res.json(updatedPlan);
-  } catch (error) {
-    res.status(500).json({ message: 'Error al actualizar el plan', error });
-  }
-});
-
-// 🔹 Eliminar un plan por ID
-router.delete('/:id', auth, async (req, res) => {
-  try {
-    const deletedPlan = await Plan.findByIdAndDelete(req.params.id);
-    if (!deletedPlan) return res.status(404).json({ message: 'Plan no encontrado' });
-    res.json({ message: 'Plan eliminado correctamente' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error al eliminar el plan', error });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al obtener el plan' });
   }
 });
 

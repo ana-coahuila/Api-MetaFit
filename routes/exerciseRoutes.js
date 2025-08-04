@@ -1,36 +1,43 @@
 const express = require('express');
 const router = express.Router();
-const exerciseController = require('../controllers/exerciseController');
+const Exercise = require('../models/Exercise');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
-// @route   GET /api/exercises
-// @desc    Obtener todos los ejercicios (filtrados por categoría si se proporciona)
-// @access  Público
-router.get('/', exerciseController.getAllExercises);
+// @route   GET /api/exercises/generate
+// @desc    Generar rutina de ejercicios según BMI del usuario
+// @access  Private
+router.get('/generate', auth, async (req, res) => {
+  try {
+    // 1. Obtener usuario y su categoría BMI
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
 
-// @route   GET /api/exercises/category/:category
-// @desc    Obtener ejercicios por categoría
-// @access  Público
-router.get('/category/:category', exerciseController.getExercisesByCategory);
+    // 2. Buscar 3 ejercicios aleatorios para la categoría del usuario
+    const exercises = await Exercise.aggregate([
+      { $match: { bmiCategory: user.bmiCategory } },
+      { $sample: { size: 3 } }
+    ]);
 
-// @route   GET /api/exercises/:id
-// @desc    Obtener ejercicio por ID
-// @access  Público
-router.get('/:id', exerciseController.getExerciseById);
+    if (exercises.length === 0) {
+      return res.status(404).json({ 
+        message: 'No se encontraron ejercicios para esta categoría BMI' 
+      });
+    }
 
-// @route   POST /api/exercises
-// @desc    Crear un nuevo ejercicio (solo admin)
-// @access  Privado (Admin)
-router.post('/', auth, exerciseController.createExercise);
+    res.json({
+      bmiCategory: user.bmiCategory,
+      exercises
+    });
 
-// @route   PUT /api/exercises/:id
-// @desc    Actualizar un ejercicio (solo admin)
-// @access  Privado (Admin)
-router.put('/:id', auth, exerciseController.updateExercise);
-
-// @route   DELETE /api/exercises/:id
-// @desc    Eliminar un ejercicio (solo admin)
-// @access  Privado (Admin)
-router.delete('/:id', auth, exerciseController.deleteExercise);
+  } catch (err) {
+    res.status(500).json({ 
+      message: 'Error al generar rutina de ejercicios',
+      error: err.message 
+    });
+  }
+});
 
 module.exports = router;

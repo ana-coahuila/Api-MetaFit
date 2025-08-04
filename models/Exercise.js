@@ -32,10 +32,10 @@ const exerciseSchema = new mongoose.Schema({
     trim: true
   },
 
-  category: {
+  bmiCategory: {
     type: String,
-    required: true,
-    enum: ['normal', 'sobrepeso', 'obesidadI', 'obesidadII', 'obesidadIII']
+    enum: ['Bajo peso', 'Normal', 'Sobrepeso', 'Obesidad I', 'Obesidad II', 'Obesidad III'],
+    required: true
   }
   
 }, { timestamps: true });
