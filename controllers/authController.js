@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 // Registro de usuario  
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, password, age, weight, height, targetWeight } = req.body;
+    const { fullName, email, password, age, weight, height, targetWeight, diseases = ['Ninguna'] } = req.body;
 
     // Verificar si el usuario ya existe
     let user = await User.findOne({ email });
@@ -18,6 +18,31 @@ exports.register = async (req, res) => {
       return res.status(400).json({ message: 'El peso objetivo debe estar entre 30 y 300 kg' });
     }
 
+    // Validar enfermedades
+    if (diseases) {
+      // Verificar si hay enfermedades distintas a "Ninguna"
+      const hasRealDiseases = diseases.some(disease => disease !== 'Ninguna');
+      
+      if (hasRealDiseases) {
+        // Obtener lista de nutriólogos recomendados (puedes personalizar esta lista)
+        const recommendedNutriologists = [
+          { name: "Dr. Juan Pérez", specialty: "Nutrición clínica", location: "Ciudad de México" },
+          { name: "Dra. Ana García", specialty: "Trastornos alimenticios", location: "Guadalajara" },
+          { name: "Dr. Carlos López", specialty: "Diabetes y obesidad", location: "Monterrey" }
+        ];
+        
+        return res.status(403).json({ 
+          message: 'Por tu seguridad, necesitas atención personalizada',
+          suggestion: 'Consulta con un nutriólogo especializado para un plan adecuado a tus necesidades',
+          action: {
+            text: 'Encontrar nutriólogo cercano',
+            url: '/nutriologos'
+          },
+          recommendedNutriologists: recommendedNutriologists
+        });
+      }
+    }
+
     // Crear nuevo usuario
     user = new User({
       fullName,
@@ -26,7 +51,8 @@ exports.register = async (req, res) => {
       age,
       weight,
       height,
-      targetWeight
+      targetWeight,
+      diseases
     });
 
     // Encriptar contraseña
@@ -58,24 +84,21 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login de usuario
+// Resto de los métodos (login, getUserInfo, updateUserInfo) se mantienen igual
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Verificar si el usuario existe
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: 'Credenciales inválidas' });
     }
 
-    // Verificar contraseña
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Credenciales inválidas' });
     }
 
-    // Crear y devolver token JWT
     const payload = {
       user: {
         id: user.id
@@ -97,7 +120,6 @@ exports.login = async (req, res) => {
   }
 };
 
-// Obtener información del usuario
 exports.getUserInfo = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
@@ -108,12 +130,11 @@ exports.getUserInfo = async (req, res) => {
   }
 };
 
-// Actualizar información del usuario
 exports.updateUserInfo = async (req, res) => {
   try {
-    const { fullName, age, weight, height, targetWeight } = req.body;
+    const { fullName, age, weight, height, targetWeight, diseases } = req.body;
 
-    // Validaciones
+    // Validaciones básicas
     if (age && (age < 18 || age > 30)) {
       return res.status(400).json({ message: 'La edad debe estar entre 18 y 30 años' });
     }
@@ -126,12 +147,38 @@ exports.updateUserInfo = async (req, res) => {
       return res.status(400).json({ message: 'El peso objetivo debe estar entre 30 y 300 kg' });
     }
 
+    // Validar enfermedades si se están actualizando
+    if (diseases) {
+      // Verificar si hay enfermedades distintas a "Ninguna"
+      const hasRealDiseases = diseases.some(disease => disease !== 'Ninguna');
+      
+      if (hasRealDiseases) {
+        // Obtener lista de nutriólogos recomendados
+        const recommendedNutriologists = [
+          { name: "Dr. Juan Pérez", specialty: "Nutrición clínica", location: "Ciudad de México" },
+          { name: "Dra. Ana García", specialty: "Trastornos alimenticios", location: "Guadalajara" },
+          { name: "Dr. Carlos López", specialty: "Diabetes y obesidad", location: "Monterrey" }
+        ];
+        
+        return res.status(403).json({ 
+          message: 'No puedes actualizar a un estado con enfermedades',
+          suggestion: 'Para modificar tus condiciones médicas, consulta con un especialista',
+          action: {
+            text: 'Contactar nutriólogo',
+            url: '/nutriologos'
+          },
+          recommendedNutriologists: recommendedNutriologists
+        });
+      }
+    }
+
     const userFields = {};
     if (fullName) userFields.fullName = fullName;
     if (age) userFields.age = age;
     if (weight) userFields.weight = weight;
     if (height) userFields.height = height;
     if (targetWeight) userFields.targetWeight = targetWeight;
+    if (diseases) userFields.diseases = diseases;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,

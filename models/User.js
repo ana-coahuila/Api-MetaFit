@@ -45,16 +45,51 @@ const userSchema = new mongoose.Schema({
   },
   bmiCategory: {
     type: String,
-    enum: ['Normal', 'Sobrepeso', 'Obesidad I', 'Obesidad II', 'Obesidad III']
+    enum: ['Bajo peso', 'Normal', 'Sobrepeso', 'Obesidad I', 'Obesidad II', 'Obesidad III']
   },
-
+  diseases: {
+    type: [{
+      type: String,
+      enum: [
+        'Diabetes',
+        'Hipertension',
+        'Enfermedades cardiacas',
+        'Trastornos alimenticios',
+        'Problemas gastrointestinales',
+        'Ninguna'
+      ],
+      validate: {
+        validator: function(arr) {
+          // Solo permite "Ninguna" si es el único elemento
+          if (arr.includes('Ninguna') && arr.length > 1) {
+            return false;
+          }
+          return true;
+        },
+        message: 'No puedes tener "Ninguna" junto con otras enfermedades'
+      }
+    }],
+    default: ['Ninguna'],
+    validate: {
+      validator: function(arr) {
+        return arr.length > 0;
+      },
+      message: 'Debe tener al menos una opción de enfermedad'
+    }
+  }
 }, { timestamps: true });
 
-// Calcular BMI antes de guardar
+// Middleware para calcular BMI
 userSchema.pre('save', function(next) {
   if (this.isModified('weight') || this.isModified('height')) {
-    this.bmi = calculateBMI(this.weight, this.height);
-    this.bmiCategory = getBMICategory(this.bmi);
+    this.bmi = this.weight / Math.pow(this.height / 100, 2);
+    
+    if (this.bmi < 18.5) this.bmiCategory = 'Bajo peso';
+    else if (this.bmi < 25) this.bmiCategory = 'Normal';
+    else if (this.bmi < 30) this.bmiCategory = 'Sobrepeso';
+    else if (this.bmi < 35) this.bmiCategory = 'Obesidad I';
+    else if (this.bmi < 40) this.bmiCategory = 'Obesidad II';
+    else this.bmiCategory = 'Obesidad III';
   }
   next();
 });
@@ -63,20 +98,5 @@ userSchema.pre('save', function(next) {
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
-
-function calculateBMI(weight, height) {
-  // Convertir altura de cm a m
-  const heightInMeters = height / 100;
-  return weight / (heightInMeters * heightInMeters);
-}
-
-function getBMICategory(bmi) {
-  if (bmi < 18.5) return 'Bajo peso'; 
-  if (bmi < 25) return 'Normal';
-  if (bmi < 30) return 'Sobrepeso';
-  if (bmi < 35) return 'Obesidad I';
-  if (bmi < 40) return 'Obesidad II';
-  return 'Obesidad III';
-}
 
 module.exports = mongoose.model('User', userSchema);
