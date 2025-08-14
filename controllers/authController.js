@@ -19,12 +19,12 @@ exports.register = async (req, res) => {
     }
 
     // Validar enfermedades
-    if (diseases) {
+    if (diseases && diseases.length > 0) {
       // Verificar si hay enfermedades distintas a "Ninguna"
       const hasRealDiseases = diseases.some(disease => disease !== 'Ninguna');
       
       if (hasRealDiseases) {
-        // Obtener lista de nutriólogos recomendados (puedes personalizar esta lista)
+        // Lista de nutriólogos recomendados
         const recommendedNutriologists = [
           { name: "Dr. Juan Pérez", specialty: "Nutrición clínica", location: "Ciudad de México" },
           { name: "Dra. Ana García", specialty: "Trastornos alimenticios", location: "Guadalajara" },
@@ -75,7 +75,17 @@ exports.register = async (req, res) => {
       { expiresIn: '1h' },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ 
+          token,
+          message: '¡Registro exitoso!',
+          userInfo: {
+            fullName: user.fullName,
+            email: user.email,
+            bmi: user.bmi,
+            bmiCategory: user.bmiCategory,
+            diseases: user.diseases
+          }
+        });
       }
     );
   } catch (err) {

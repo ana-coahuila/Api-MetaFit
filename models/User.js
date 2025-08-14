@@ -57,24 +57,15 @@ const userSchema = new mongoose.Schema({
         'Trastornos alimenticios',
         'Problemas gastrointestinales',
         'Ninguna'
-      ],
-      validate: {
-        validator: function(arr) {
-          // Solo permite "Ninguna" si es el único elemento
-          if (arr.includes('Ninguna') && arr.length > 1) {
-            return false;
-          }
-          return true;
-        },
-        message: 'No puedes tener "Ninguna" junto con otras enfermedades'
-      }
+      ]
     }],
     default: ['Ninguna'],
     validate: {
       validator: function(arr) {
-        return arr.length > 0;
+        // Permitir "Ninguna" sola o cualquier lista sin "Ninguna"
+        return !(arr.includes('Ninguna') && arr.length > 1);
       },
-      message: 'Debe tener al menos una opción de enfermedad'
+      message: '"Ninguna" no puede combinarse con otras enfermedades'
     }
   }
 }, { timestamps: true });
