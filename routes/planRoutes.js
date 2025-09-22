@@ -4,54 +4,76 @@ const Plan = require('../models/Plan');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
+// Función auxiliar para mezclar un array aleatoriamente
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 // @route   POST /api/plans/generate
-// @desc    Generar plan automático basado en BMI del usuario
+// @desc    Generar o actualizar plan semanal basado en BMI del usuario
 // @access  Private
 router.post('/generate', auth, async (req, res) => {
   try {
-    // 1. Obtener el usuario autenticado
+    // Obtener usuario
     const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'Usuario no encontrado' });
-    }
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    // 2. Verificar que el usuario tenga bmiCategory
-    if (!user.bmiCategory) {
+    if (!user.bmiCategory)
       return res.status(400).json({ message: 'El usuario no tiene categoría BMI asignada' });
+
+    // Buscar todos los planes disponibles para la categoría BMI
+    const samplePlans = await Plan.find({ bmiCategory: user.bmiCategory });
+    if (!samplePlans || samplePlans.length === 0)
+      return res.status(404).json({ message: 'No se encontraron planes para esta categoría BMI' });
+
+    // Extraer todas las comidas posibles
+    let breakfasts = samplePlans.map(p => p.meals.breakfast);
+    let lunches = samplePlans.map(p => p.meals.lunch);
+    let dinners = samplePlans.map(p => p.meals.dinner);
+
+    breakfasts = shuffleArray(breakfasts);
+    lunches = shuffleArray(lunches);
+    dinners = shuffleArray(dinners);
+
+    // Crear weeklyMeals sin repetir
+    const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    const weeklyMeals = {};
+    for (let i = 0; i < days.length; i++) {
+      weeklyMeals[days[i]] = [
+        breakfasts[i % breakfasts.length],
+        lunches[i % lunches.length],
+        dinners[i % dinners.length]
+      ];
     }
 
-    // 3. Buscar un plan existente en la DB que coincida con la categoría del usuario
-    const samplePlan = await Plan.findOne({ 
-      bmiCategory: user.bmiCategory 
-    });
+    // Verificar si ya existe plan del usuario
+    let plan = await Plan.findOne({ userId: user._id });
 
-    if (!samplePlan) {
-      return res.status(404).json({ 
-        message: 'No se encontraron planes para la categoría BMI del usuario' 
+    if (plan) {
+      // Actualizar plan existente
+      plan.weeklyMeals = weeklyMeals;
+      plan.meals = samplePlans[0].meals; // mantiene estructura original
+      await plan.save();
+    } else {
+      // Crear nuevo plan
+      plan = new Plan({
+        userId: user._id,
+        bmiCategory: user.bmiCategory,
+        meals: samplePlans[0].meals,
+        weeklyMeals
       });
+      await plan.save();
     }
 
-    // 4. Crear el nuevo plan para el usuario
-    const newPlan = new Plan({
-      userId: user._id,
-      bmiCategory: user.bmiCategory,
-      meals: {
-        breakfast: samplePlan.meals.breakfast,
-        lunch: samplePlan.meals.lunch,
-        dinner: samplePlan.meals.dinner
-      }
-    });
-
-    // 5. Guardar el plan y responder
-    const savedPlan = await newPlan.save();
-    res.status(201).json(savedPlan);
-
+    res.status(201).json(plan);
   } catch (err) {
-    console.error('Error al generar plan:', err);
-    res.status(500).json({ 
-      message: 'Error al generar el plan',
-      error: err.message 
-    });
+    console.error('Error al generar el plan:', err);
+    res.status(500).json({ message: 'Error al generar el plan', error: err.message });
   }
 });
 
@@ -61,9 +83,8 @@ router.post('/generate', auth, async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const plan = await Plan.findOne({ userId: req.user.id });
-    if (!plan) {
-      return res.status(404).json({ message: 'No se encontró un plan para este usuario' });
-    }
+    if (!plan) return res.status(404).json({ message: 'No se encontró un plan para este usuario' });
+
     res.json(plan);
   } catch (err) {
     res.status(500).json({ message: 'Error al obtener el plan' });

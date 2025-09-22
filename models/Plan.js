@@ -27,6 +27,16 @@ const planSchema = new mongoose.Schema({
       calories: { type: Number, required: true },
       category: { type: String, required: true }
     }
+  },
+  // NUEVO CAMPO: recomendaciones semanales
+  weeklyMeals: {
+    monday: [{ name: String, calories: Number, category: String }],
+    tuesday: [{ name: String, calories: Number, category: String }],
+    wednesday: [{ name: String, calories: Number, category: String }],
+    thursday: [{ name: String, calories: Number, category: String }],
+    friday: [{ name: String, calories: Number, category: String }],
+    saturday: [{ name: String, calories: Number, category: String }],
+    sunday: [{ name: String, calories: Number, category: String }]
   }
 }, { timestamps: true });
 
