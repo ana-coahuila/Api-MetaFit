@@ -37,7 +37,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
 });
 
 module.exports = app;
