@@ -27,9 +27,10 @@ app.use('/api/progress', progressRoutes);
 
 // Conexión a MongoDB
 const mongo_URI = process.env.MONGODB_URI;
-mongoose.connect(mongo_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-.then(() => console.log('Conectado a MongoDB'))
-.catch(err => console.error('Error de conexión a MongoDB:', err));
+
+mongoose.connect(mongo_URI)
+  .then(() => console.log('✅ Conectado a MongoDB'))
+  .catch(err => console.error('❌ Error de conexión a MongoDB:', err));
 
 // Puerto
 const PORT = process.env.PORT || 5000;
