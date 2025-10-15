@@ -26,8 +26,8 @@ app.use('/api/progress', progressRoutes);
 // Rutas para la ia 
 
 // Conexión a MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/fitness_db';
-mongoose.connect(MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+const mongo_URI = process.env.MONGODB_URI;
+mongoose.connect(mongo_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 .then(() => console.log('Conectado a MongoDB'))
 .catch(err => console.error('Error de conexión a MongoDB:', err));
 
