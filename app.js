@@ -34,7 +34,7 @@ mongoose.connect(mongo_URI)
 
 // Puerto
 const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || "0.0.0.0";
 
 // Iniciar servidor
 app.listen(PORT, () => {
