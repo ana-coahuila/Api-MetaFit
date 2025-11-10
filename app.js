@@ -6,6 +6,7 @@ const mealRoutes = require('./routes/mealRoutes');
 const exerciseRoutes = require('./routes/exerciseRoutes');
 const planRoutes = require('./routes/planRoutes');
 const progressRoutes = require('./routes/progressRoutes');
+const iaRoutes = require('./routes/iaRoutes');
 const errorHandler = require('./middleware/errorHandler');
 require('dotenv').config();
 
@@ -22,8 +23,9 @@ app.use('/api/meals', mealRoutes);
 app.use('/api/exercises', exerciseRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/progress', progressRoutes);
-
 // Rutas para la ia 
+app.use('/api/ia', iaRoutes); 
+
 
 // Conexión a MongoDB
 const mongo_URI = process.env.MONGODB_URI;

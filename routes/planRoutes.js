@@ -3,8 +3,12 @@ const router = express.Router();
 const Plan = require('../models/Plan');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const axios = require('axios');
 
-// Función auxiliar para mezclar un array aleatoriamente
+// === CONFIG ===
+const IA_URL = process.env.IA_URL || 'http://localhost:8000';
+
+// ==================== FUNCIÓN AUXILIAR ====================
 function shuffleArray(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -14,24 +18,27 @@ function shuffleArray(array) {
   return arr;
 }
 
-// @route   POST /api/plans/generate
-// @desc    Generar o actualizar plan semanal basado en BMI del usuario
-// @access  Private
+// ==================== DÍAS EN INGLÉS ====================
+const DAYS = {
+  lunes: "monday",
+  martes: "tuesday",
+  miercoles: "wednesday",
+  jueves: "thursday",
+  viernes: "friday",
+  sabado: "saturday",
+  domingo: "sunday"
+};
+
+// ==================== GENERAR PLAN ====================
 router.post('/generate', auth, async (req, res) => {
   try {
-    // Obtener usuario
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+    if (!user.bmiCategory) return res.status(400).json({ message: 'El usuario no tiene categoría BMI asignada' });
 
-    if (!user.bmiCategory)
-      return res.status(400).json({ message: 'El usuario no tiene categoría BMI asignada' });
-
-    // Buscar todos los planes disponibles para la categoría BMI
     const samplePlans = await Plan.find({ bmiCategory: user.bmiCategory });
-    if (!samplePlans || samplePlans.length === 0)
-      return res.status(404).json({ message: 'No se encontraron planes para esta categoría BMI' });
+    if (!samplePlans.length) return res.status(404).json({ message: 'No se encontraron planes para esta categoría BMI' });
 
-    // Extraer todas las comidas posibles
     let breakfasts = samplePlans.map(p => p.meals.breakfast);
     let lunches = samplePlans.map(p => p.meals.lunch);
     let dinners = samplePlans.map(p => p.meals.dinner);
@@ -40,27 +47,22 @@ router.post('/generate', auth, async (req, res) => {
     lunches = shuffleArray(lunches);
     dinners = shuffleArray(dinners);
 
-    // Crear weeklyMeals sin repetir
-    const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    const weekDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
     const weeklyMeals = {};
-    for (let i = 0; i < days.length; i++) {
-      weeklyMeals[days[i]] = [
+    for (let i = 0; i < weekDays.length; i++) {
+      weeklyMeals[weekDays[i]] = [
         breakfasts[i % breakfasts.length],
         lunches[i % lunches.length],
         dinners[i % dinners.length]
       ];
     }
 
-    // Verificar si ya existe plan del usuario
     let plan = await Plan.findOne({ userId: user._id });
-
     if (plan) {
-      // Actualizar plan existente
       plan.weeklyMeals = weeklyMeals;
-      plan.meals = samplePlans[0].meals; // mantiene estructura original
+      plan.meals = samplePlans[0].meals;
       await plan.save();
     } else {
-      // Crear nuevo plan
       plan = new Plan({
         userId: user._id,
         bmiCategory: user.bmiCategory,
@@ -72,22 +74,46 @@ router.post('/generate', auth, async (req, res) => {
 
     res.status(201).json(plan);
   } catch (err) {
-    console.error('Error al generar el plan:', err);
-    res.status(500).json({ message: 'Error al generar el plan', error: err.message });
+    console.error('Error al generar plan:', err);
+    res.status(500).json({ message: 'Error al generar plan', error: err.message });
   }
 });
 
-// @route   GET /api/plans/me
-// @desc    Obtener el plan del usuario actual
-// @access  Private
+// ==================== OBTENER PLAN ====================
 router.get('/me', auth, async (req, res) => {
   try {
     const plan = await Plan.findOne({ userId: req.user.id });
-    if (!plan) return res.status(404).json({ message: 'No se encontró un plan para este usuario' });
-
+    if (!plan) return res.status(404).json({ message: 'No se encontró un plan' });
     res.json(plan);
   } catch (err) {
-    res.status(500).json({ message: 'Error al obtener el plan' });
+    res.status(500).json({ message: 'Error al obtener plan', error: err.message });
+  }
+});
+
+// ==================== ADAPTAR PLAN ====================
+router.post('/adapt', auth, async (req, res) => {
+  try {
+    let { eventType, day } = req.body;
+    const user = await User.findById(req.user.id);
+    const plan = await Plan.findOne({ userId: user._id });
+    if (!plan) return res.status(404).json({ message: 'No se encontró plan' });
+
+    day = DAYS[day.toLowerCase()] || "monday";
+
+    const iaResponse = await axios.post(`${IA_URL}/adapt`, {
+      userId: user._id.toString(),
+      eventType: eventType.toLowerCase(),
+      day,
+      plan: plan.weeklyMeals
+    });
+
+    plan.weeklyMeals = iaResponse.data.updatedPlan;
+    await plan.save();
+
+    res.json({ message: iaResponse.data.message, updatedPlan: plan.weeklyMeals });
+  } catch (err) {
+    console.error('Error al adaptar plan:', err.message);
+    res.status(500).json({ message: 'Error al adaptar plan', error: err.message });
   }
 });
 
