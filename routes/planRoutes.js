@@ -93,24 +93,33 @@ router.get('/me', auth, async (req, res) => {
 // ==================== ADAPTAR PLAN ====================
 router.post('/adapt', auth, async (req, res) => {
   try {
-    let { eventType, day } = req.body;
+    const { eventType, day } = req.body;
+
     const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
     const plan = await Plan.findOne({ userId: user._id });
     if (!plan) return res.status(404).json({ message: 'No se encontró plan' });
 
-    day = DAYS[day.toLowerCase()] || "monday";
+    // Convertir día a inglés
+    const dayInEng = DAYS[day.toLowerCase()] || "monday";
 
+    // Llamar a la IA Flask
     const iaResponse = await axios.post(`${IA_URL}/adapt`, {
       userId: user._id.toString(),
       eventType: eventType.toLowerCase(),
-      day,
+      day: dayInEng,
       plan: plan.weeklyMeals
     });
 
+    // Guardar directamente en Mongo
     plan.weeklyMeals = iaResponse.data.updatedPlan;
     await plan.save();
 
-    res.json({ message: iaResponse.data.message, updatedPlan: plan.weeklyMeals });
+    res.json({
+      message: iaResponse.data.message,
+      updatedPlan: plan.weeklyMeals
+    });
   } catch (err) {
     console.error('Error al adaptar plan:', err.message);
     res.status(500).json({ message: 'Error al adaptar plan', error: err.message });
