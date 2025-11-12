@@ -31,7 +31,7 @@ app.use('/api/ia', iaRoutes);
 const mongo_URI = process.env.MONGODB_URI;
 
 mongoose.connect(mongo_URI)
-  .then(() => console.log('✅ Conectado a MongoDB'))
+  .then(() => console.log('Conectado a MongoDBss'))
   .catch(err => console.error('❌ Error de conexión a MongoDB:', err));
 
 // Puerto
