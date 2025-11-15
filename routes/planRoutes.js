@@ -90,6 +90,17 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// ==================== OBTENER PLANES POR BMI CATEGORY ====================
+router.get('/sample', async (req, res) => {
+  try {
+    const { bmiCategory } = req.query;
+    const plans = await Plan.find({ bmiCategory });
+    res.json(plans);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al obtener planes', error: err.message });
+  }
+});
+
 // ==================== ADAPTAR PLAN ====================
 router.post('/adapt', auth, async (req, res) => {
   try {
@@ -104,7 +115,7 @@ router.post('/adapt', auth, async (req, res) => {
     // Convertir día a inglés
     const dayInEng = DAYS[day.toLowerCase()] || "monday";
 
-    // Llamar a la IA Flask
+    // Llamar a la IA Flask - CORREGIDO
     const iaResponse = await axios.post(`${IA_URL}/adapt`, {
       userId: user._id.toString(),
       eventType: eventType.toLowerCase(),
@@ -122,7 +133,18 @@ router.post('/adapt', auth, async (req, res) => {
     });
   } catch (err) {
     console.error('Error al adaptar plan:', err.message);
-    res.status(500).json({ message: 'Error al adaptar plan', error: err.message });
+    
+    if (err.response) {
+      res.status(err.response.status).json({ 
+        message: 'Error en la IA', 
+        error: err.response.data 
+      });
+    } else {
+      res.status(500).json({ 
+        message: 'Error al adaptar plan', 
+        error: err.message 
+      });
+    }
   }
 });
 
